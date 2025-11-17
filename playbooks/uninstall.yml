@@ -1,0 +1,116 @@
+---
+- name: Uninstall Teleport from Public Node
+  hosts: public_node
+  become: yes
+  vars:
+    ssh_key_path: "{{ lookup('env', 'Public_Node_MgmtCert') | default(lookup('env', 'Public_Node_SSH_Key') | default('~/.ssh/id_rsa')) }}"
+    ansible_ssh_private_key_file: "{{ ssh_key_path | regex_replace('^\\.', lookup('env', 'HOME') + '/.') | regex_replace('^~', lookup('env', 'HOME')) }}"
+    ansible_ssh_common_args: "{{ '-o CertificateFile=' + lookup('env', 'Public_Node_SSH_Cert') if lookup('env', 'Public_Node_SSH_Cert') | length > 0 else '' }}"
+  tasks:
+    - name: Stop Teleport service
+      systemd:
+        name: teleport
+        state: stopped
+      ignore_errors: yes
+
+    - name: Disable Teleport service
+      systemd:
+        name: teleport
+        enabled: no
+      ignore_errors: yes
+
+    - name: Remove Teleport systemd service file
+      file:
+        path: /etc/systemd/system/teleport.service
+        state: absent
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Remove Teleport configuration directory
+      file:
+        path: /etc/teleport
+        state: absent
+
+    - name: Remove Teleport data directory
+      file:
+        path: /var/lib/teleport
+        state: absent
+
+    - name: Remove Teleport binaries
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /usr/local/bin/teleport
+        - /usr/local/bin/tctl
+
+    - name: Remove Teleport archive
+      file:
+        path: /opt/teleport.tar.gz
+        state: absent
+
+    - name: Remove extracted Teleport directory
+      file:
+        path: /opt/teleport
+        state: absent
+
+- name: Uninstall Teleport from Private Node
+  hosts: private_node
+  become: yes
+  vars:
+    ssh_key_path: "{{ lookup('env', 'Private_Node_MgmtCert') | default(lookup('env', 'Private_Node_SSH_Key') | default('~/.ssh/id_rsa')) }}"
+    ansible_ssh_private_key_file: "{{ ssh_key_path | regex_replace('^\\.', lookup('env', 'HOME') + '/.') | regex_replace('^~', lookup('env', 'HOME')) }}"
+    ansible_ssh_common_args: "{{ '-o CertificateFile=' + lookup('env', 'Private_Node_SSH_Cert') if lookup('env', 'Private_Node_SSH_Cert') | length > 0 else '' }}"
+  tasks:
+    - name: Stop Teleport service
+      systemd:
+        name: teleport
+        state: stopped
+      ignore_errors: yes
+
+    - name: Disable Teleport service
+      systemd:
+        name: teleport
+        enabled: no
+      ignore_errors: yes
+
+    - name: Remove Teleport systemd service file
+      file:
+        path: /etc/systemd/system/teleport.service
+        state: absent
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Remove Teleport configuration directory
+      file:
+        path: /etc/teleport
+        state: absent
+
+    - name: Remove Teleport data directory
+      file:
+        path: /var/lib/teleport
+        state: absent
+
+    - name: Remove Teleport binaries
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /usr/local/bin/teleport
+        - /usr/local/bin/tctl
+
+    - name: Remove Teleport archive
+      file:
+        path: /opt/teleport.tar.gz
+        state: absent
+
+    - name: Remove extracted Teleport directory
+      file:
+        path: /opt/teleport
+        state: absent
+
+

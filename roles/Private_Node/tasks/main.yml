@@ -1,0 +1,98 @@
+---
+- name: Check if .env file exists
+  stat:
+    path: "{{ playbook_dir }}/../.env"
+  register: env_file
+  delegate_to: localhost
+  become: no
+  run_once: true
+
+- name: Fail if .env file is missing
+  fail:
+    msg: ".env file is required. Copy env.example to .env and fill in your values."
+  when: not env_file.stat.exists
+  delegate_to: localhost
+  become: no
+  run_once: true
+
+- name: Install required packages
+  package:
+    name:
+      - curl
+      - wget
+      - ca-certificates
+    state: present
+
+- name: Download Teleport binary
+  get_url:
+    url: "https://cdn.teleport.dev/teleport-v{{ teleport_version }}-linux-amd64-bin.tar.gz"
+    dest: /opt/teleport.tar.gz
+    mode: '0644'
+
+- name: Extract Teleport binary
+  unarchive:
+    src: /opt/teleport.tar.gz
+    dest: /opt
+    remote_src: yes
+
+- name: Install Teleport binaries
+  copy:
+    src: "/opt/teleport/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: '0755'
+    remote_src: yes
+  loop:
+    - teleport
+    - tctl
+
+- name: Create Teleport directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ teleport_data_dir }}"
+    - "{{ teleport_config_dir }}"
+
+- name: Get join token from environment
+  set_fact:
+    teleport_join_token: "{{ lookup('env', 'Teleport_Join_Token') | default('') }}"
+  become: no
+
+- name: Fail if join token is not set
+  fail:
+    msg: "Teleport_Join_Token must be set in .env file. Run the public node deployment first to generate it."
+  when: teleport_join_token | length == 0
+  delegate_to: localhost
+  become: no
+  run_once: true
+
+- name: Generate Teleport configuration for private node
+  template:
+    src: teleport.yaml.j2
+    dest: "{{ teleport_config_dir }}/teleport.yaml"
+    mode: '0644'
+  notify: restart teleport
+
+- name: Create Teleport systemd service
+  template:
+    src: teleport.service.j2
+    dest: /etc/systemd/system/teleport.service
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart teleport
+
+- name: Enable and start Teleport service
+  systemd:
+    name: teleport
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Wait for Teleport service to connect
+  pause:
+    seconds: 10
+

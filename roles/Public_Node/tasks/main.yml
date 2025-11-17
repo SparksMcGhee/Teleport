@@ -1,0 +1,124 @@
+---
+- name: Check if .env file exists
+  stat:
+    path: "{{ playbook_dir }}/../.env"
+  register: env_file
+  delegate_to: localhost
+  become: no
+  run_once: true
+
+- name: Fail if .env file is missing
+  fail:
+    msg: ".env file is required. Copy env.example to .env and fill in your values."
+  when: not env_file.stat.exists
+  delegate_to: localhost
+  become: no
+  run_once: true
+
+- name: Install required packages
+  package:
+    name:
+      - curl
+      - wget
+      - ca-certificates
+    state: present
+
+- name: Download Teleport binary
+  get_url:
+    url: "https://cdn.teleport.dev/teleport-v{{ teleport_version }}-linux-amd64-bin.tar.gz"
+    dest: /opt/teleport.tar.gz
+    mode: '0644'
+
+- name: Extract Teleport binary
+  unarchive:
+    src: /opt/teleport.tar.gz
+    dest: /opt
+    remote_src: yes
+
+- name: Install Teleport binaries
+  copy:
+    src: "/opt/teleport/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: '0755'
+    remote_src: yes
+  loop:
+    - teleport
+    - tctl
+
+- name: Create Teleport directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ teleport_data_dir }}"
+    - "{{ teleport_config_dir }}"
+
+- name: Generate Teleport configuration for public node
+  template:
+    src: teleport.yaml.j2
+    dest: "{{ teleport_config_dir }}/teleport.yaml"
+    mode: '0644'
+  notify: restart teleport
+
+- name: Create Teleport systemd service
+  template:
+    src: teleport.service.j2
+    dest: /etc/systemd/system/teleport.service
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart teleport
+
+- name: Enable and start Teleport service
+  systemd:
+    name: teleport
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Wait for Teleport auth service to be ready
+  wait_for:
+    port: 3025
+    delay: 10
+    timeout: 120
+
+- name: Wait for Teleport proxy to be ready
+  wait_for:
+    port: 443
+    delay: 10
+    timeout: 120
+
+- name: Configure passkey authentication (passwordless)
+  shell: |
+    export TELEPORT_CONFIG_FILE={{ teleport_config_dir }}/teleport.yaml
+    /usr/local/bin/tctl users add teleport-admin --roles=access,editor,audit --auth=passwordless 2>&1 || true
+  register: passkey_setup
+  changed_when: "'already exists' not in passkey_setup.stdout"
+  failed_when: false
+
+- name: Check if join token exists in .env
+  set_fact:
+    env_join_token: "{{ lookup('env', 'Teleport_Join_Token') | default('') }}"
+  become: no
+
+- name: Generate join token for private node if not in .env
+  shell: |
+    export TELEPORT_CONFIG_FILE={{ teleport_config_dir }}/teleport.yaml
+    /usr/local/bin/tctl tokens add --type=app --ttl=0 2>&1
+  register: token_generation
+  when: env_join_token | length == 0
+  changed_when: token_generation.rc == 0
+  failed_when: token_generation.rc != 0
+
+- name: Display generated token for manual addition to .env
+  debug:
+    msg: |
+      ============================================
+      IMPORTANT: Add this token to your .env file:
+      Teleport_Join_Token={{ token_generation.stdout | trim }}
+      ============================================
+  when: env_join_token | length == 0 and token_generation.rc == 0
+

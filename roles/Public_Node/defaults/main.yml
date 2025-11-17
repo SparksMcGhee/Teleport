@@ -1,0 +1,8 @@
+---
+teleport_version: "{{ lookup('env', 'Teleport_Version') | default('15.0.0') }}"
+teleport_public_name: "{{ lookup('env', 'Teleport_Public_Name') }}"
+teleport_public_proxy_hostname: "{{ lookup('env', 'Teleport_Public_Proxy_Hostname') | default(lookup('env', 'Teleport_Public_Name')) }}"
+acme_email: "{{ lookup('env', 'ACME_Email') }}"
+teleport_data_dir: /var/lib/teleport
+teleport_config_dir: /etc/teleport
+

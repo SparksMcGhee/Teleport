@@ -1,0 +1,3 @@
+# Ansible requirements (if using ansible-galaxy)
+# This project uses built-in Ansible modules only, no external collections required
+

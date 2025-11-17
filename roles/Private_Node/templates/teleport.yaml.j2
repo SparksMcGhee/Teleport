@@ -1,0 +1,32 @@
+version: v3
+
+teleport:
+  data_dir: {{ teleport_data_dir }}
+  auth_token: {{ teleport_join_token }}
+  proxy_server: {{ teleport_proxy_server }}
+  log:
+    output: stderr
+    severity: INFO
+
+auth_service:
+  enabled: no
+
+proxy_service:
+  enabled: no
+
+app_service:
+  enabled: yes
+  apps:
+    - name: haos
+      uri: http://{{ teleport_app_haos_url }}
+      public_addr: haos.{{ teleport_public_name }}
+    - name: comfyui
+      uri: http://spark-ddb1:8188/
+      public_addr: comfyui.{{ teleport_public_name }}
+      rewrite:
+        headers:
+          - "Host: spark-ddb1:8188"
+
+ssh_service:
+  enabled: no
+
