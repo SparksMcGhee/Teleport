@@ -26,6 +26,9 @@ app_service:
       rewrite:
         headers:
           - "Host: spark-ddb1:8188"
+    - name: kirin-bot
+      uri: http://spark-ddb1.shitbox.dev:666
+      public_addr: kirin-bot.{{ teleport_public_name }}
 
 ssh_service:
   enabled: no

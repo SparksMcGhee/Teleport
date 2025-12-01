@@ -82,11 +82,14 @@ tctl users add <username> --roles=access,editor,audit --auth=passwordless
 Teleport/
 ├── roles/
 │   ├── Public_Node/          # Public node role (auth + proxy)
-│   └── Private_Node/          # Private node role (proxy only)
+│   └── Private_Node/          # Private node role (app service)
 ├── playbooks/
 │   └── deploy.yml            # Main deployment playbook
 ├── scripts/
 │   └── setup_inventory.sh    # Inventory generation script
+├── howtos/                   # How-to guides and documentation
+│   ├── README.md             # Guide index
+│   └── KIRIN_DEV_SETUP.md    # Developer setup guide
 ├── ansible.cfg               # Ansible configuration
 ├── inventory.ini             # Generated inventory file
 ├── env.example               # Environment variable template
@@ -99,8 +102,16 @@ Teleport/
 - ✅ ACME certificate management via Let's Encrypt
 - ✅ Reverse tunnel setup for NATed private node
 - ✅ Passwordless (passkey) authentication
+- ✅ Application access service (Kirin-Bot, ComfyUI, Home Assistant)
+- ✅ Role-based access control (RBAC)
 - ✅ Systemd service integration
 - ✅ Fail-fast error handling
+
+## End User Documentation
+
+For developers and users accessing resources through this Teleport cluster:
+
+- **[Kirin Developer Setup Guide](./howtos/KIRIN_DEV_SETUP.md)** - Complete guide for installing Teleport CLI, authenticating, and accessing development resources
 
 ## Troubleshooting
 
